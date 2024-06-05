@@ -1,0 +1,8 @@
+.env
+/data
+*.xlsx
+*.xls
+*.csv
+*.pbix
+notebooks/
+utils/
