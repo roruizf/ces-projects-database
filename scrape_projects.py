@@ -15,6 +15,7 @@ from pathlib import Path
 from unidecode import unidecode
 import logging
 from typing import List, Dict, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils import scraper
 
 # Configure logger
@@ -104,69 +105,101 @@ def get_number_of_pages(state: str) -> int:
     return max(number_of_pages) if number_of_pages else 1
 
 
-def get_project_page_data(state_df: pd.DataFrame, state: str) -> None:
+def scrape_single_project(url: str, index: int) -> Optional[Dict]:
     """
-    Scrape detailed data for each project and save to CSV.
+    Scrape data from a single project page.
+    
+    Args:
+        url: Project URL to scrape
+        index: Project index for logging
+        
+    Returns:
+        Dictionary with project data, or None if scraping failed
+    """
+    response = scraper.get_single_page_response(url)
+    if not response:
+        logger.warning(f"Failed to fetch {url}")
+        return None
+
+    parsed = scraper.parse_html(response.content)
+
+    # Extract project name
+    project_name = parsed.xpath('//h1[@class="entry-title"]/text()')
+    project_name = project_name[0].strip() if project_name else None
+
+    # Extract project image URL
+    project_image_url = parsed.xpath('//figure[@class="wp-block-image size-large"]/img/@src')
+    project_image_url = project_image_url[0].strip().replace('http:', 'https:') if project_image_url else None
+
+    # Extract entry date
+    project_entry_date = parsed.xpath('//time[@class="entry-date published"]/@datetime')
+    project_entry_date = project_entry_date[0][:10].strip() if project_entry_date else None
+
+    project_dict = {
+        'project_name': project_name,
+        'project_image_url': project_image_url,
+        'project_entry_date': project_entry_date
+    }
+
+    # Extract project details
+    project_details_keys = parsed.xpath('//div[@class="entry-content"]//li/b/text()')
+    project_details_keys = [item.strip().replace(':', '').rstrip(':') for item in project_details_keys]
+    project_details_keys = [unidecode(item) for item in project_details_keys]
+
+    project_details_values = parsed.xpath('//div[@class="entry-content"]//li/text()')
+    project_details_values = [item.strip().replace(':', '').rstrip(':') for item in project_details_values]
+    
+    project_details_dict = dict(zip(project_details_keys, project_details_values))
+
+    target_keys = [
+        'Mandante', 'Arquitecto', 'Unidad tecnica', 'Asesor', 'Entidad Evaluadora',
+        'Region', 'Comuna', 'Version de certificacion', 'Nivel obtenido',
+        'Fecha de logro obtenido', 'Puntaje obtenido', 'Asesor precertificacion',
+        'Entidad evaluadora precertificacion', 'Asesor certificacion',
+        'Entidad evaluadora certificacion'
+    ]
+
+    for key in target_keys:
+        project_dict[key] = project_details_dict.get(key, None)
+
+    return project_dict
+
+
+def get_project_page_data(state_df: pd.DataFrame, state: str, max_workers: int = 5) -> None:
+    """
+    Scrape detailed data for each project using concurrent requests and save to CSV.
     
     Args:
         state_df: DataFrame containing project URLs
         state: Certification state name
+        max_workers: Number of concurrent workers (default: 5)
     """
     projects_data_list = []
     total_projects = len(state_df)
-    logger.info(f"Processing {total_projects} projects for state '{state}'")
+    logger.info(f"Processing {total_projects} projects for state '{state}' with {max_workers} concurrent workers")
 
-    for i, url in enumerate(state_df['url']):
-        response = scraper.get_single_page_response(url)
-        if not response:
-            logger.warning(f"Failed to fetch {url}")
-            continue
-
-        parsed = scraper.parse_html(response.content)
-
-        # Extract project name
-        project_name = parsed.xpath('//h1[@class="entry-title"]/text()')
-        project_name = project_name[0].strip() if project_name else None
-
-        # Extract project image URL
-        project_image_url = parsed.xpath('//figure[@class="wp-block-image size-large"]/img/@src')
-        project_image_url = project_image_url[0].strip().replace('http:', 'https:') if project_image_url else None
-
-        # Extract entry date
-        project_entry_date = parsed.xpath('//time[@class="entry-date published"]/@datetime')
-        project_entry_date = project_entry_date[0][:10].strip() if project_entry_date else None
-
-        project_dict = {
-            'project_name': project_name,
-            'project_image_url': project_image_url,
-            'project_entry_date': project_entry_date
+    # Use ThreadPoolExecutor for concurrent requests
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_url = {
+            executor.submit(scrape_single_project, url, i): (url, i) 
+            for i, url in enumerate(state_df['url'])
         }
-
-        # Extract project details
-        project_details_keys = parsed.xpath('//div[@class="entry-content"]//li/b/text()')
-        project_details_keys = [item.strip().replace(':', '').rstrip(':') for item in project_details_keys]
-        project_details_keys = [unidecode(item) for item in project_details_keys]
-
-        project_details_values = parsed.xpath('//div[@class="entry-content"]//li/text()')
-        project_details_values = [item.strip().replace(':', '').rstrip(':') for item in project_details_values]
         
-        project_details_dict = dict(zip(project_details_keys, project_details_values))
-
-        target_keys = [
-            'Mandante', 'Arquitecto', 'Unidad tecnica', 'Asesor', 'Entidad Evaluadora',
-            'Region', 'Comuna', 'Version de certificacion', 'Nivel obtenido',
-            'Fecha de logro obtenido', 'Puntaje obtenido', 'Asesor precertificacion',
-            'Entidad evaluadora precertificacion', 'Asesor certificacion',
-            'Entidad evaluadora certificacion'
-        ]
-
-        for key in target_keys:
-            project_dict[key] = project_details_dict.get(key, None)
-
-        if (i + 1) % 10 == 0:
-            logger.info(f'Processed {i + 1}/{total_projects} projects')
-
-        projects_data_list.append(project_dict)
+        # Process completed tasks
+        completed = 0
+        for future in as_completed(future_to_url):
+            url, index = future_to_url[future]
+            try:
+                project_data = future.result()
+                if project_data:
+                    projects_data_list.append(project_data)
+                completed += 1
+                
+                if completed % 10 == 0:
+                    logger.info(f'Processed {completed}/{total_projects} projects')
+            except Exception as e:
+                logger.error(f"Error processing {url}: {e}")
 
     if not projects_data_list:
         logger.warning(f"No detailed data collected for {state}")

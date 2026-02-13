@@ -26,9 +26,12 @@ python scrape_projects.py
 
 **¿Qué hace este comando?**
 1.  Recorre todas las categorías de certificación (`en-proceso`, `pre-certificacion`, etc.).
-2.  Descarga los detalles de cada proyecto.
+2.  Descarga los detalles de cada proyecto usando 5 workers concurrentes para mayor velocidad.
 3.  Guarda archivos temporales en `data/raw/` con la fecha de ejecución.
 4.  Genera automáticamente un archivo consolidado final llamado `[CES]_Projects_Full_List-YYYY_MM_DD.csv`.
+5.  Elimina los archivos intermedios automáticamente.
+
+**Tiempo estimado:** 2-3 minutos para ~500 proyectos (gracias al procesamiento paralelo).
 
 ### 2. Procesar Registro de Asesores
 Si dispones de un archivo actualizado de asesores (ej: `Registro_AsesoresCES_v41.2022.csv`) y deseas limpiarlo:

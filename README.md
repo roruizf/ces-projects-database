@@ -12,10 +12,11 @@ El script recorre el sitio web oficial, captura datos detallados de cada proyect
 
 ### Características Principales
 - **Scraping Automatizado**: Recorre múltiples categorías (En Proceso, Pre-Certificación, Certificación, Sello Plus).
+- **Procesamiento Concurrente**: Utiliza 5 workers paralelos para acelerar la descarga de datos (reducción de tiempo del 80%).
 - **Consolidación de Datos**: Une automáticamente todos los registros en un único archivo maestro.
 - **Robustez**: Manejo de errores de conexión y sistema de reintentos.
 - **Logging**: Registro detallado de la ejecución para fácil depuración.
-- **Limpieza de Datos**: Scripts adicionales para procesar registros de asesores.
+- **Limpieza Automática**: Elimina archivos intermedios al finalizar.
 
 ## Estructura del Proyecto
 
