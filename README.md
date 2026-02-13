@@ -1,4 +1,4 @@
-# CES Projects Database Scraper
+# Base de Datos de Proyectos CES (Chile)
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
 ![Pandas](https://img.shields.io/badge/pandas-data%20processing-orange)
@@ -37,8 +37,8 @@ ces-projects-database/
 
 1.  **Clonar el repositorio**:
     ```bash
-    git clone <url-del-repo>
-    cd ces-projects-database
+    git clone https://github.com/roruizf/proyectos-ces-chile-database.git
+    cd proyectos-ces-chile-database
     ```
 
 2.  **Instalar dependencias**:

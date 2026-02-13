@@ -1,4 +1,4 @@
-# Manual de Usuario - Base de Datos Proyectos CES
+# Manual de Usuario - Base de Datos de Proyectos CES (Chile)
 
 ## Introducción
 Esta herramienta permite extraer (scrapear) automáticamente información de proyectos desde el sitio web de Certificación Edificio Sustentable (CES). El sistema descarga los datos, los procesa y genera una base de datos consolidada en formato CSV.
@@ -33,15 +33,18 @@ python scrape_projects.py
 
 **Tiempo estimado:** 2-3 minutos para ~500 proyectos (gracias al procesamiento paralelo).
 
-### 2. Procesar Registro de Asesores
-Si dispones de un archivo actualizado de asesores (ej: `Registro_AsesoresCES_v41.2022.csv`) y deseas limpiarlo:
+### 2. Actualizar Registro de Asesores
+Para descargar la lista oficial de asesores acreditados desde el sitio de CES y procesarla:
 
-1.  Asegúrate de que el archivo CSV original esté en la carpeta raíz.
-2.  Ejecuta:
-    ```bash
-    python scrape_assessors.py
-    ```
-3.  El archivo limpio se guardará en `data/raw/[CES]_Registro_AsesoresCES_Full_List-YYYY_MM_DD.csv`.
+```bash
+python scrape_assessors.py
+```
+
+**¿Qué hace este comando?**
+1.  Se conecta al sitio web de CES y descarga el archivo Excel más reciente de asesores.
+2.  Limpia y estandariza los formatos de fecha (español a ISO).
+3.  Filtra las columnas relevantes (RUT, email, región, etc.).
+4.  Genera el archivo `data/raw/[CES]_Registro_AsesoresCES_Full_List-YYYY_MM_DD.csv`.
 
 ## Solución de Problemas
 
